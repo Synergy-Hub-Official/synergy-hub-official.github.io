@@ -502,10 +502,11 @@
       backdrop-filter: blur(15px);
       display: none;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       padding: 20px;
       opacity: 0;
       transition: opacity 0.3s;
+      overflow-y: auto;
     }
 
     #detail-overlay.show {
@@ -518,12 +519,13 @@
       max-width: 900px;
       border-radius: 20px;
       border: 1px solid var(--glass-border);
-      display: grid;
-      grid-template-columns: 1fr 350px;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
       box-shadow: 0 25px 60px rgba(0,0,0,0.8);
       transform: scale(0.95);
       transition: transform 0.3s;
+      margin: 30px 0;
     }
 
     #detail-overlay.show .detail-modal {
@@ -532,16 +534,19 @@
 
     .modal-content {
       padding: 30px;
-      border-right: 1px solid var(--glass-border);
-      overflow-y: auto;
-      max-height: 80vh;
+      overflow-y: visible;
     }
 
     .modal-sidebar {
       background: #0a0a0c;
       padding: 30px;
-      display: flex;
-      flex-direction: column;
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .modal-comments {
+      padding: 30px;
+      background: #0a0a0c;
     }
 
     .close-modal {
@@ -907,14 +912,8 @@
       }
 
       .grid-home,
-      .about-grid,
-      .detail-modal {
+      .about-grid {
         grid-template-columns: 1fr;
-      }
-
-      .modal-content {
-        border-right: none;
-        border-bottom: 1px solid var(--glass-border);
       }
 
       h2 {
@@ -973,6 +972,50 @@
       .comment-form {
         padding: 15px;
       }
+
+      .detail-modal {
+        max-height: 90vh;
+        overflow-y: auto;
+        margin: 10px 0;
+      }
+
+      #detail-overlay {
+        align-items: flex-start;
+        padding: 10px;
+      }
+
+      .modal-content,
+      .modal-sidebar,
+      .modal-comments {
+        padding: 20px;
+      }
+    }
+
+    @media (min-width: 901px) {
+      .detail-modal {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        grid-template-areas: 
+          "content sidebar"
+          "comments sidebar";
+      }
+
+      .modal-content {
+        grid-area: content;
+        border-right: 1px solid var(--glass-border);
+      }
+
+      .modal-sidebar {
+        grid-area: sidebar;
+        border-left: 1px solid var(--glass-border);
+        border-top: none;
+        border-bottom: none;
+      }
+
+      .modal-comments {
+        grid-area: comments;
+        border-right: 1px solid var(--glass-border);
+      }
     }
 
     @media (max-width: 600px) {
@@ -996,6 +1039,10 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
+      }
+
+      .detail-modal {
+        border-radius: 16px;
       }
     }
 
@@ -1321,8 +1368,9 @@
     <div class="detail-modal">
       <button class="close-modal" onclick="closeDetails()"><i class="fas fa-times"></i></button>
 
-      <div class="modal-content" id="modal-left"></div>
-      <div class="modal-sidebar" id="modal-right" style="background: linear-gradient(135deg, rgba(255,255,255,0.02), transparent);"></div>
+      <div class="modal-content" id="modal-content"></div>
+      <div class="modal-sidebar" id="modal-sidebar"></div>
+      <div class="modal-comments" id="modal-comments"></div>
     </div>
   </div>
 
@@ -1409,13 +1457,14 @@
 
     function openDetails(id) {
       const data = scriptsData[id];
-      const left = document.getElementById('modal-left');
-      const right = document.getElementById('modal-right');
+      const modalContent = document.getElementById('modal-content');
+      const modalSidebar = document.getElementById('modal-sidebar');
+      const modalComments = document.getElementById('modal-comments');
       const overlay = document.getElementById('detail-overlay');
       
       currentScriptId = id;
 
-      left.innerHTML = `
+      modalContent.innerHTML = `
         <h2 style="margin-bottom:15px; font-size:24px;">${data.title}</h2>
         <div style="width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; border:1px solid var(--glass-border); position:relative; overflow:hidden;">
           <div style="text-align:center; z-index:2;">
@@ -1431,8 +1480,26 @@
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px;">
           ${data.features.map(f => `<div style="background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:8px; font-size:13px; display:flex; align-items:center; gap:8px;"><i class="fas fa-check" style="color:var(--cyan);"></i> ${f}</div>`).join('')}
         </div>
-        
-        <div class="comments-section" id="comments-section">
+      `;
+
+      modalSidebar.innerHTML = `
+        <div>
+          <h3 style="font-size:16px; margin-bottom:10px;">Loadstring</h3>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Copy and paste this into your executor.</p>
+          <div class="code-block" id="modal-code">${data.raw}</div>
+          <button class="btn btn-primary" style="width:100%; margin-top:20px; padding:14px;" onclick="copyScript('${data.title}', \`${data.raw}\`)"><i class="fas fa-copy"></i> Copy Script</button>
+        </div>
+        <div style="margin-top:auto; padding-top:20px;">
+          <div style="font-size:12px; color:var(--text-muted); border-top:1px solid var(--glass-border); padding-top:15px; display:flex; flex-direction:column; gap:8px;">
+            <div><i class="fas fa-shield-alt" style="color:#10b981; width:15px;"></i> Verified Safe</div>
+            <div><i class="fas fa-history" style="color:var(--accent); width:15px;"></i> Updated: Dec 2025</div>
+            <div><i class="fas fa-check-circle" style="color:var(--pink); width:15px;"></i> No Key System</div>
+          </div>
+        </div>
+      `;
+
+      modalComments.innerHTML = `
+        <div class="comments-section">
           <h3><i class="fas fa-comments"></i> Community Comments</h3>
           <div class="comments-list" id="comments-list">
             <div class="comment-loading">
@@ -1449,24 +1516,10 @@
         </div>
       `;
 
-      right.innerHTML = `
-        <div>
-          <h3 style="font-size:16px; margin-bottom:10px;">Loadstring</h3>
-          <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Copy and paste this into your executor.</p>
-          <div class="code-block" id="modal-code">${data.raw}</div>
-          <button class="btn btn-primary" style="width:100%; margin-top:20px; padding:14px;" onclick="copyScript('${data.title}', \`${data.raw}\`)"><i class="fas fa-copy"></i> Copy Script</button>
-        </div>
-        <div style="margin-top:auto; padding-top:20px;">
-          <div style="font-size:12px; color:var(--text-muted); border-top:1px solid var(--glass-border); padding-top:15px; display:flex; flex-direction:column; gap:8px;">
-            <div><i class="fas fa-shield-alt" style="color:#10b981; width:15px;"></i> Verified Safe</div>
-            <div><i class="fas fa-history" style="color:var(--accent); width:15px;"></i> Updated: Dec 2025</div>
-            <div><i class="fas fa-check-circle" style="color:var(--pink); width:15px;"></i> No Key System</div>
-          </div>
-        </div>
-      `;
-
       overlay.style.display = 'flex';
       setTimeout(() => overlay.classList.add('show'), 10);
+      
+      overlay.scrollTop = 0;
       
       loadComments(id);
     }
@@ -1698,7 +1751,7 @@ async function deleteComment(commentId) {
       let width, height, particles = [];
 
       const isMobile = window.innerWidth < 768;
-      const particleCount = isMobile ? 35 : 120;
+      const particleCount = isMobile ? 150 : 400;
 
       function resize() {
         width = canvas.width = window.innerWidth;
